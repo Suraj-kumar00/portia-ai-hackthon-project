@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-py"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ENUMS - This was missing and causing all the errors
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_APPROVAL
+  RESOLVED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum Role {
+  CUSTOMER
+  AGENT
+  AI_AGENT
+  SYSTEM
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// MODELS
+model Customer {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  phone       String?
+  company     String?
+  segment     String?  // VIP, Regular, etc.
+  metadata    Json?    // Additional customer data
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relations
+  tickets       Ticket[]
+  conversations Conversation[]
+  
+  @@map("customers")
+}
+
+model Ticket {
+  id          String      @id @default(cuid())
+  subject     String
+  status      TicketStatus @default(OPEN)
+  priority    Priority    @default(MEDIUM)
+  category    String?
+  source      String      // email, chat, phone, api
+  
+  // Customer relation
+  customer_id String
+  customer    Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  
+  // Agent assignment
+  assigned_to String?
+  resolved_by String?
+  
+  // AI processing metadata
+  ai_processed Boolean @default(false)
+  ai_confidence Float?
+  last_ai_interaction DateTime?
+  
+  // Timestamps
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  resolved_at DateTime?
+  
+  // Relations
+  conversations Conversation[]
+  approvals     HumanApproval[]
+  
+  @@map("tickets")
+  @@index([customer_id])
+  @@index([created_at])
+  @@index([status])
+  @@index([priority])
+}
+
+model Conversation {
+  id          String   @id @default(cuid())
+  content     String
+  role        Role     // CUSTOMER, AGENT, AI_AGENT, SYSTEM
+  metadata    Json?    // Store Portia plan_run data and other metadata
+  
+  // Relations
+  ticket_id   String
+  ticket      Ticket   @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  customer_id String
+  customer    Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  
+  // AI agent specific fields
+  ai_plan_id     String? // Portia plan ID
+  ai_confidence  Float?
+  requires_approval Boolean @default(false)
+  
+  created_at  DateTime @default(now())
+  
+  @@map("conversations")
+  @@index([ticket_id])
+  @@index([created_at])
+  @@index([role])
+}
+
+model HumanApproval {
+  id          String         @id @default(cuid())
+  ticket_id   String
+  ticket      Ticket         @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  
+  action_type String         // refund, escalation, etc.
+  ai_suggestion String
+  status      ApprovalStatus @default(PENDING)
+  approved_by String?
+  reason      String?
+  plan_id     String?        // Portia plan ID
+  
+  created_at  DateTime @default(now())
+  decided_at  DateTime?
+  
+  @@map("human_approvals")
+  @@index([ticket_id])
+  @@index([status])
+  @@index([created_at])
+}
+
+model AgentConfiguration {
+  id              String @id @default(cuid())
+  name            String
+  description     String?
+  llm_provider    String @default("google")
+  llm_model       String @default("gemini-2.0-flash")
+  system_prompt   String
+  tools_enabled   String[] // Array of tool names
+  approval_rules  Json     // Rules for when to require approval
+  active          Boolean @default(true)
+  
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  
+  @@map("agent_configurations")
+}
+
+model PerformanceMetric {
+  id                String   @id @default(cuid())
+  date              DateTime @default(now())
+  
+  // Volume metrics
+  total_tickets     Int      @default(0)
+  ai_resolved       Int      @default(0)
+  human_escalated   Int      @default(0)
+  
+  // Performance metrics
+  avg_response_time_minutes Int?
+  avg_resolution_time_hours Int?
+  customer_satisfaction     Float?
+  
+  // Cost metrics
+  cost_per_ticket   Float?
+  total_cost        Float?
+  
+  @@unique([date])
+  @@map("performance_metrics")
+}
