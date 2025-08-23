@@ -12,8 +12,9 @@ class Settings(BaseSettings):
     # Database (Direct PostgreSQL)
     database_url: str = Field(..., env="DATABASE_URL")
     
-    # Gemini AI (Portia Official)
+    # AI APIs
     google_api_key: str = Field(..., env="GOOGLE_API_KEY")
+    portia_api_key: Optional[str] = Field(default=None, env="PORTIA_API_KEY")
     
     # Clerk Authentication
     clerk_secret_key: str = Field(..., env="CLERK_SECRET_KEY")
@@ -39,9 +40,11 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     sentry_dsn: Optional[str] = Field(default=None, env="SENTRY_DSN")
 
+    # Allow extra environment variables
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "allow"
 
 # Create global settings instance
 settings = Settings()

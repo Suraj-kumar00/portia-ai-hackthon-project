@@ -1,63 +1,38 @@
-"""Database configuration and connection management"""
-import asyncpg
+"""Proper Prisma integration with FastAPI"""
 from prisma import Prisma
-from typing import Optional
 import structlog
-from .settings import settings
 
 logger = structlog.get_logger(__name__)
 
-class DatabaseManager:
-    """Database connection manager for PostgreSQL"""
-    
-    def __init__(self):
-        self.db: Optional[Prisma] = None
-        self._connection_pool: Optional[asyncpg.Pool] = None
-    
-    async def connect(self) -> Prisma:
-        """Initialize database connection"""
-        if self.db is None:
-            try:
-                self.db = Prisma()
-                await self.db.connect()
-                logger.info("Database connected successfully")
-            except Exception as e:
-                logger.error("Database connection failed", error=str(e))
-                raise
-        
-        return self.db
-    
-    async def disconnect(self):
-        """Close database connection"""
-        if self.db:
-            await self.db.disconnect()
-            logger.info("Database disconnected")
-    
-    async def get_connection_pool(self) -> asyncpg.Pool:
-        """Get asyncpg connection pool for raw queries"""
-        if self._connection_pool is None:
-            try:
-                self._connection_pool = await asyncpg.create_pool(
-                    settings.database_url,
-                    min_size=5,
-                    max_size=20
-                )
-                logger.info("Connection pool created")
-            except Exception as e:
-                logger.error("Connection pool creation failed", error=str(e))
-                raise
-        
-        return self._connection_pool
-    
-    async def close_pool(self):
-        """Close connection pool"""
-        if self._connection_pool:
-            await self._connection_pool.close()
-            logger.info("Connection pool closed")
+# Global Prisma client instance
+prisma_client = None
 
-# Global database manager instance
-db_manager = DatabaseManager()
+async def connect_prisma():
+    """Initialize Prisma client connection"""
+    global prisma_client
+    
+    try:
+        prisma_client = Prisma()
+        await prisma_client.connect()
+        logger.info("✅ Prisma database connected successfully")
+        return prisma_client
+    except Exception as e:
+        logger.error("❌ Prisma connection failed", error=str(e))
+        raise
 
-async def get_database() -> Prisma:
-    """FastAPI dependency to get database connection"""
-    return await db_manager.connect()
+async def disconnect_prisma():
+    """Close Prisma client connection"""
+    global prisma_client
+    
+    if prisma_client:
+        await prisma_client.disconnect()
+        logger.info("✅ Prisma database disconnected")
+
+def get_prisma() -> Prisma:
+    """Get Prisma client instance"""
+    global prisma_client
+    
+    if not prisma_client:
+        raise RuntimeError("Prisma client not initialized. Call connect_prisma() first.")
+    
+    return prisma_client

@@ -1,0 +1,88 @@
+# ✅ REMOVED: version: '3.8' (obsolete, causes warning)
+
+services:
+  # Backend API - Direct .env file pass-through
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    # ✅ KEEP: Your .env file usage
+    env_file:
+      - .env
+    environment:
+      # Database connection for Docker network
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/customer_support_ai
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo '🚀 Starting Customer Support AI Backend with Python 3.12...' &&
+        echo '📦 Environment Variables:' &&
+        python -c 'import os; print(f\"Google API Key: {\"✅ Loaded\" if os.getenv(\"GOOGLE_API_KEY\") else \"❌ Missing\"}\")' &&
+        python -c 'import os; print(f\"Portia API Key: {\"✅ Loaded\" if os.getenv(\"PORTIA_API_KEY\") else \"❌ Missing\"}\")' &&
+        echo '⏳ Waiting for database...' &&
+        python -c 'import time; time.sleep(5)' &&
+        echo '🔧 Running Prisma setup...' &&
+        python -m prisma generate &&
+        python -m prisma migrate dev --name init || echo 'Migration skipped' &&
+        echo '🎉 Starting FastAPI server...' &&
+        uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: customer_support_ai
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d customer_support_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis for Caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# Optional: Named network for better container communication
+networks:
+  default:
+    name: customer-support-ai-network
+    driver: bridge

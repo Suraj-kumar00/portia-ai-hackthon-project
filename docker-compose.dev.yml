@@ -5,7 +5,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
@@ -52,7 +52,7 @@ services:
   celery_worker:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     environment:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/customer_support_ai
       - REDIS_URL=redis://redis:6379/0
