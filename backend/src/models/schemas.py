@@ -1,6 +1,6 @@
 """Pydantic schemas for API request/response models"""
-from pydantic import BaseModel, Field, EmailStr
-from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, Field, EmailStr, validator
+from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
 from enum import Enum
 
@@ -120,17 +120,54 @@ class TicketResponse(BaseModel):
     conversations: Optional[List[ConversationResponse]]
     approvals: Optional[List[ApprovalResponse]]
 
+# ✅ FIXED: Enhanced Classification Model to handle mixed types
+class ClassificationModel(BaseModel):
+    category: Optional[str] = None
+    priority: Optional[str] = None
+    urgency: Optional[str] = None
+    sentiment: Optional[str] = None
+    cloud_enhanced: Optional[Union[str, bool]] = None  # ✅ Accept both string and bool
+    confidence: Optional[float] = None
+    
+    @validator('cloud_enhanced')
+    def convert_cloud_enhanced_to_string(cls, v):
+        """Convert boolean cloud_enhanced to string"""
+        if isinstance(v, bool):
+            return str(v).lower()  # True -> "true", False -> "false"
+        return v
+    
+    @validator('confidence')
+    def validate_confidence(cls, v):
+        """Ensure confidence is between 0 and 1"""
+        if v is not None and (v < 0 or v > 1):
+            return max(0, min(1, v))  # Clamp between 0 and 1
+        return v
+
+# ✅ FIXED: Enhanced ProcessQueryResponse with flexible classification
 class ProcessQueryResponse(BaseModel):
     request_id: str
     ticket_id: str
-    plan_id: Optional[str]
+    plan_id: Optional[str] = None
     status: str
     ai_response: str
-    classification: Dict[str, str]
-    requires_human_approval: bool
-    approval_id: Optional[str]
-    suggested_actions: List[Dict[str, Any]]
+    classification: Optional[Union[ClassificationModel, Dict[str, Any]]] = None  # ✅ Accept both model and dict
+    requires_human_approval: bool = False
+    approval_id: Optional[str] = None
+    suggested_actions: List[Dict[str, Any]] = []
     processing_time_ms: Optional[float] = None
+    
+    @validator('classification', pre=True)
+    def convert_classification(cls, v):
+        """Convert dict classification to ClassificationModel"""
+        if isinstance(v, dict):
+            # Handle cloud_enhanced boolean conversion
+            if 'cloud_enhanced' in v and isinstance(v['cloud_enhanced'], bool):
+                v['cloud_enhanced'] = str(v['cloud_enhanced']).lower()
+            return ClassificationModel(**v)
+        return v
+    
+    class Config:
+        from_attributes = True
 
 class HumanApprovalResponse(BaseModel):
     approval_id: str

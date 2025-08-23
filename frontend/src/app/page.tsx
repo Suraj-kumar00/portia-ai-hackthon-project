@@ -1,11 +1,16 @@
+"use client"
+
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowRight, Bot, MessageSquare, BarChart3, Shield, CheckCircle, Sparkles, Zap, Globe, Clock, Moon, Sun, Menu } from 'lucide-react'
+import { ArrowRight, Bot, MessageSquare, BarChart3, Shield, CheckCircle, Sparkles, Zap, Globe, Clock, Moon, Sun, Menu, X } from 'lucide-react'
 import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
+import { useState } from 'react'
 
-export default async function HomePage() {
+export default function HomePage() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
   return (
     <div className="min-h-screen overflow-hidden">
       {/* Animated Background */}
@@ -30,76 +35,144 @@ export default async function HomePage() {
       <header className="sticky top-0 z-50 backdrop-blur-custom bg-white/90 dark:bg-slate-900/90 border-b border-white/20 dark:border-slate-800/50">
         <div className="container mx-auto px-4 py-4">
           <nav className="flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center space-x-3">
+            {/* Logo - Clickable to Homepage */}
+            <Link href="/" className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity">
               <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-500 rounded-xl shadow-lg">
                 <Bot className="h-6 w-6 text-white" />
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 Customer Support AI
               </span>
-            </div>
+            </Link>
 
-            {/* Navigation Links */}
-            <div className="hidden md:flex items-center space-x-8">
-              <Link href="/about" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium">
+            {/* Desktop Navigation Links */}
+            <div className="hidden lg:flex items-center space-x-8">
+              <Link href="/about" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium cursor-pointer">
                 About
               </Link>
-              <Link href="/features" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium">
+              <Link href="/features" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium cursor-pointer">
                 Features
               </Link>
-              <Link href="/pricing" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium">
+              <Link href="/pricing" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium cursor-pointer">
                 Pricing
               </Link>
-              <Link href="/contact" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium">
+              <Link href="/contact" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium cursor-pointer">
                 Contact
               </Link>
             </div>
 
             {/* Right Side Actions */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               {/* Dark Mode Toggle */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-9 h-9 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20"
+              <button
+                className="w-9 h-9 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors cursor-pointer flex items-center justify-center"
+                onClick={() => {
+                  // Add your dark mode toggle logic here
+                  document.documentElement.classList.toggle('dark')
+                }}
               >
                 <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                 <span className="sr-only">Toggle theme</span>
-              </Button>
+              </button>
 
-              <SignedOut>
-                <Link href="/sign-in">
-                  <Button variant="ghost" className="rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/sign-up">
-                  <Button className="rounded-xl bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-lg">
-                    Get Started
-                  </Button>
-                </Link>
-              </SignedOut>
-              <SignedIn>
-                <Link href="/dashboard">
-                  <Button variant="outline" className="rounded-xl border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/20">
-                    Dashboard
-                  </Button>
-                </Link>
-                <UserButton afterSignOutUrl="/" />
-              </SignedIn>
+              {/* Desktop Auth Buttons */}
+              <div className="hidden md:flex items-center space-x-3">
+                <SignedOut>
+                  <Link href="/sign-in">
+                    <Button variant="ghost" className="rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 cursor-pointer">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/sign-up">
+                    <Button className="rounded-xl bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-lg cursor-pointer">
+                      Get Started
+                    </Button>
+                  </Link>
+                </SignedOut>
+                <SignedIn>
+                  <Link href="/dashboard">
+                    <Button variant="outline" className="rounded-xl border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/20 cursor-pointer">
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <UserButton afterSignOutUrl="/" />
+                </SignedIn>
+              </div>
 
               {/* Mobile Menu Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-9 h-9 rounded-xl md:hidden hover:bg-purple-50 dark:hover:bg-purple-900/20"
+              <button
+                className="w-9 h-9 rounded-xl lg:hidden hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors cursor-pointer flex items-center justify-center"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
               >
-                <Menu className="h-4 w-4" />
-              </Button>
+                {isMenuOpen ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <Menu className="h-4 w-4" />
+                )}
+              </button>
             </div>
           </nav>
+
+          {/* Mobile Menu */}
+          {isMenuOpen && (
+            <div className="lg:hidden mt-4 pb-4 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col space-y-4 pt-4">
+                {/* Mobile Navigation Links */}
+                <Link 
+                  href="/about" 
+                  className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium cursor-pointer px-2 py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  About
+                </Link>
+                <Link 
+                  href="/features" 
+                  className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium cursor-pointer px-2 py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Features
+                </Link>
+                <Link 
+                  href="/pricing" 
+                  className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium cursor-pointer px-2 py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Pricing
+                </Link>
+                <Link 
+                  href="/contact" 
+                  className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors font-medium cursor-pointer px-2 py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Contact
+                </Link>
+                
+                {/* Mobile Auth Buttons */}
+                <div className="flex flex-col space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                  <SignedOut>
+                    <Link href="/sign-in" onClick={() => setIsMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 cursor-pointer">
+                        Sign In
+                      </Button>
+                    </Link>
+                    <Link href="/sign-up" onClick={() => setIsMenuOpen(false)}>
+                      <Button className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-lg cursor-pointer">
+                        Get Started
+                      </Button>
+                    </Link>
+                  </SignedOut>
+                  <SignedIn>
+                    <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
+                      <Button variant="outline" className="w-full rounded-xl border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/20 cursor-pointer">
+                        Dashboard
+                      </Button>
+                    </Link>
+                  </SignedIn>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -129,20 +202,20 @@ export default async function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8 animate-slideUp">
             <SignedOut>
               <Link href="/sign-up">
-                <Button size="lg" className="px-8 py-4 text-lg rounded-2xl bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                <Button size="lg" className="px-8 py-4 text-lg rounded-2xl bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer">
                   Get Started Free
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Link href="/demo">
-                <Button variant="outline" size="lg" className="px-8 py-4 text-lg rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300">
+                <Button variant="outline" size="lg" className="px-8 py-4 text-lg rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300 cursor-pointer">
                   Watch Demo
                 </Button>
               </Link>
             </SignedOut>
             <SignedIn>
               <Link href="/dashboard">
-                <Button size="lg" className="px-8 py-4 text-lg rounded-2xl bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                <Button size="lg" className="px-8 py-4 text-lg rounded-2xl bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer">
                   Go to Dashboard
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
@@ -343,22 +416,22 @@ export default async function HomePage() {
               <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">Quick Links</h3>
               <ul className="space-y-3 text-sm">
                 <li>
-                  <Link href="/features" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+                  <Link href="/features" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer">
                     Features
                   </Link>
                 </li>
                 <li>
-                  <Link href="/pricing" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+                  <Link href="/pricing" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer">
                     Pricing
                   </Link>
                 </li>
                 <li>
-                  <Link href="/docs" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+                  <Link href="/docs" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer">
                     Documentation
                   </Link>
                 </li>
                 <li>
-                  <Link href="/support" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+                  <Link href="/support" className="text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer">
                     Support
                   </Link>
                 </li>
@@ -377,7 +450,7 @@ export default async function HomePage() {
                   placeholder="Enter your email"
                   className="flex-1 px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
-                <Button size="sm" className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600">
+                <Button size="sm" className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 cursor-pointer">
                   Subscribe
                 </Button>
               </div>
@@ -390,13 +463,13 @@ export default async function HomePage() {
               © 2025 Customer Support AI. All rights reserved.
             </p>
             <div className="flex items-center space-x-6 text-sm">
-              <Link href="/privacy" className="text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+              <Link href="/privacy" className="text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer">
                 Privacy Policy
               </Link>
-              <Link href="/terms" className="text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+              <Link href="/terms" className="text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer">
                 Terms of Service
               </Link>
-              <Link href="/cookies" className="text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+              <Link href="/cookies" className="text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer">
                 Cookie Policy
               </Link>
             </div>

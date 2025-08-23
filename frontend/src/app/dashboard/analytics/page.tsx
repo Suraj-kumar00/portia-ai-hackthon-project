@@ -40,11 +40,11 @@ const mockAnalytics = {
     { date: '2025-08-23', created: 34, resolved: 31, aiResolved: 22 }
   ],
   categoryDistribution: [
-    { name: 'Technical', value: 35, count: 437, color: '#8884d8' },
-    { name: 'Billing', value: 25, count: 312, color: '#82ca9d' },
-    { name: 'General', value: 20, count: 249, color: '#ffc658' },
-    { name: 'Feature Request', value: 12, count: 150, color: '#ff7300' },
-    { name: 'Bug Report', value: 8, count: 99, color: '#8dd1e1' }
+    { name: 'Technical', value: 35, count: 437, color: '#8b5cf6' },
+    { name: 'Billing', value: 25, count: 312, color: '#06b6d4' },
+    { name: 'General', value: 20, count: 249, color: '#f59e0b' },
+    { name: 'Feature Request', value: 12, count: 150, color: '#ef4444' },
+    { name: 'Bug Report', value: 8, count: 99, color: '#10b981' }
   ],
   priorityDistribution: [
     { name: 'Low', value: 45, count: 561 },
@@ -77,8 +77,8 @@ export default function AnalyticsPage() {
 
   if (!isLoaded || !isSignedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50 dark:from-slate-950 dark:via-purple-950/20 dark:to-slate-900">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500"></div>
       </div>
     )
   }
@@ -89,40 +89,50 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/20 to-blue-50 dark:from-slate-950 dark:via-purple-950/10 dark:to-slate-900">
+      {/* Animated Background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+      </div>
+
       {/* Header */}
-      <header className="border-b bg-card">
+      <header className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-white/20 dark:border-slate-800/20">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm">
+              <Link href="/dashboard" className="cursor-pointer">
+                <Button variant="ghost" size="sm" className="hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl cursor-pointer">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Dashboard
                 </Button>
               </Link>
               <div className="flex items-center space-x-2">
-                <TrendingUp className="h-6 w-6 text-primary" />
-                <h1 className="text-2xl font-bold">Analytics</h1>
+                <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-500 rounded-xl shadow-lg">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">Analytics</h1>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <Select value={timeRange} onValueChange={setTimeRange}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-32 rounded-xl border-purple-200 focus:border-purple-500 cursor-pointer">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="24h">Last 24h</SelectItem>
-                  <SelectItem value="7d">Last 7 days</SelectItem>
-                  <SelectItem value="30d">Last 30 days</SelectItem>
-                  <SelectItem value="90d">Last 90 days</SelectItem>
+                <SelectContent className="backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border border-white/20 dark:border-slate-800/20 rounded-xl shadow-xl">
+                  <SelectItem value="24h" className="cursor-pointer">Last 24h</SelectItem>
+                  <SelectItem value="7d" className="cursor-pointer">Last 7 days</SelectItem>
+                  <SelectItem value="30d" className="cursor-pointer">Last 30 days</SelectItem>
+                  <SelectItem value="90d" className="cursor-pointer">Last 90 days</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={handleExport} variant="outline">
+              <Button onClick={handleExport} variant="outline" className="border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/20 rounded-xl cursor-pointer">
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>
-              <UserButton afterSignOutUrl="/" />
+              <div className="cursor-pointer">
+                <UserButton afterSignOutUrl="/" />
+              </div>
             </div>
           </div>
         </div>
@@ -131,80 +141,92 @@ export default function AnalyticsPage() {
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700 dark:text-slate-300">Total Tickets</CardTitle>
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                <MessageSquare className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockAnalytics.overview.totalTickets}</div>
-              <p className="text-xs text-muted-foreground">
-                <TrendingUp className="w-3 h-3 inline mr-1" />
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockAnalytics.overview.totalTickets}</div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                <TrendingUp className="w-3 h-3 inline mr-1 text-green-500" />
                 +12% from last period
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700 dark:text-slate-300">Resolved</CardTitle>
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockAnalytics.overview.resolvedTickets}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockAnalytics.overview.resolvedTickets}</div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {Math.round((mockAnalytics.overview.resolvedTickets / mockAnalytics.overview.totalTickets) * 100)}% resolution rate
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Response</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700 dark:text-slate-300">Avg Response</CardTitle>
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockAnalytics.overview.avgResponseTime}h</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockAnalytics.overview.avgResponseTime}h</div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 <TrendingDown className="w-3 h-3 inline mr-1 text-green-500" />
                 -15% improvement
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Satisfaction</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700 dark:text-slate-300">Satisfaction</CardTitle>
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockAnalytics.overview.customerSatisfaction}%</div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockAnalytics.overview.customerSatisfaction}%</div>
               <Progress value={mockAnalytics.overview.customerSatisfaction} className="mt-2" />
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">AI Resolution</CardTitle>
-              <Bot className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700 dark:text-slate-300">AI Resolution</CardTitle>
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                <Bot className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockAnalytics.overview.aiResolutionRate}%</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockAnalytics.overview.aiResolutionRate}%</div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 <TrendingUp className="w-3 h-3 inline mr-1 text-green-500" />
                 +8% this month
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Escalation</CardTitle>
-              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700 dark:text-slate-300">Escalation</CardTitle>
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-xl">
+                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockAnalytics.overview.escalationRate}%</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockAnalytics.overview.escalationRate}%</div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 <TrendingDown className="w-3 h-3 inline mr-1 text-green-500" />
                 -3% from last week
               </p>
@@ -214,29 +236,30 @@ export default function AnalyticsPage() {
 
         {/* Detailed Analytics */}
         <Tabs defaultValue="trends" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="trends">Trends</TabsTrigger>
-            <TabsTrigger value="categories">Categories</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="satisfaction">Satisfaction</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border border-white/20 dark:border-slate-800/20 rounded-xl p-1">
+            <TabsTrigger value="trends" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg cursor-pointer">Trends</TabsTrigger>
+            <TabsTrigger value="categories" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg cursor-pointer">Categories</TabsTrigger>
+            <TabsTrigger value="performance" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg cursor-pointer">Performance</TabsTrigger>
+            <TabsTrigger value="satisfaction" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg cursor-pointer">Satisfaction</TabsTrigger>
           </TabsList>
 
           <TabsContent value="trends" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
                 <CardHeader>
-                  <CardTitle>Ticket Volume Trends</CardTitle>
-                  <CardDescription>Daily ticket creation and resolution</CardDescription>
+                  <CardTitle className="text-slate-900 dark:text-white">Ticket Volume Trends</CardTitle>
+                  <CardDescription className="text-slate-600 dark:text-slate-300">Daily ticket creation and resolution</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={mockAnalytics.ticketTrends}>
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis 
                         dataKey="date" 
                         tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                        className="text-xs"
                       />
-                      <YAxis />
+                      <YAxis className="text-xs" />
                       <Tooltip 
                         labelFormatter={(value) => new Date(value).toLocaleDateString()}
                       />
@@ -244,8 +267,8 @@ export default function AnalyticsPage() {
                         type="monotone" 
                         dataKey="created" 
                         stackId="1"
-                        stroke="hsl(var(--primary))" 
-                        fill="hsl(var(--primary))" 
+                        stroke="#8b5cf6" 
+                        fill="#8b5cf6" 
                         fillOpacity={0.6}
                         name="Created"
                       />
@@ -253,8 +276,8 @@ export default function AnalyticsPage() {
                         type="monotone" 
                         dataKey="resolved" 
                         stackId="2"
-                        stroke="hsl(var(--muted-foreground))" 
-                        fill="hsl(var(--muted-foreground))" 
+                        stroke="#06b6d4" 
+                        fill="#06b6d4" 
                         fillOpacity={0.6}
                         name="Resolved"
                       />
@@ -263,25 +286,26 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
                 <CardHeader>
-                  <CardTitle>AI vs Human Resolution</CardTitle>
-                  <CardDescription>Breakdown of resolution by type</CardDescription>
+                  <CardTitle className="text-slate-900 dark:text-white">AI vs Human Resolution</CardTitle>
+                  <CardDescription className="text-slate-600 dark:text-slate-300">Breakdown of resolution by type</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={mockAnalytics.ticketTrends}>
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis 
                         dataKey="date" 
                         tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                        className="text-xs"
                       />
-                      <YAxis />
+                      <YAxis className="text-xs" />
                       <Tooltip 
                         labelFormatter={(value) => new Date(value).toLocaleDateString()}
                       />
-                      <Bar dataKey="aiResolved" fill="hsl(var(--primary))" name="AI Resolved" />
-                      <Bar dataKey="resolved" fill="hsl(var(--muted-foreground))" name="Total Resolved" />
+                      <Bar dataKey="aiResolved" fill="#8b5cf6" name="AI Resolved" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="resolved" fill="#06b6d4" name="Total Resolved" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -291,10 +315,10 @@ export default function AnalyticsPage() {
 
           <TabsContent value="categories" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
                 <CardHeader>
-                  <CardTitle>Ticket Categories</CardTitle>
-                  <CardDescription>Distribution of tickets by category</CardDescription>
+                  <CardTitle className="text-slate-900 dark:text-white">Ticket Categories</CardTitle>
+                  <CardDescription className="text-slate-600 dark:text-slate-300">Distribution of tickets by category</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
@@ -323,25 +347,25 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
                 <CardHeader>
-                  <CardTitle>Category Breakdown</CardTitle>
-                  <CardDescription>Detailed view of ticket categories</CardDescription>
+                  <CardTitle className="text-slate-900 dark:text-white">Category Breakdown</CardTitle>
+                  <CardDescription className="text-slate-600 dark:text-slate-300">Detailed view of ticket categories</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     {mockAnalytics.categoryDistribution.map((category) => (
-                      <div key={category.name} className="flex items-center justify-between">
+                      <div key={category.name} className="flex items-center justify-between p-3 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
                         <div className="flex items-center space-x-3">
                           <div 
                             className="w-4 h-4 rounded-full" 
                             style={{ backgroundColor: category.color }}
                           ></div>
-                          <span className="font-medium">{category.name}</span>
+                          <span className="font-medium text-slate-900 dark:text-white">{category.name}</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm text-muted-foreground">{category.count}</span>
-                          <Badge variant="secondary">{category.value}%</Badge>
+                          <span className="text-sm text-slate-600 dark:text-slate-300">{category.count}</span>
+                          <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">{category.value}%</Badge>
                         </div>
                       </div>
                     ))}
@@ -353,39 +377,39 @@ export default function AnalyticsPage() {
 
           <TabsContent value="performance" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
                 <CardHeader>
-                  <CardTitle>Response Time Distribution</CardTitle>
-                  <CardDescription>How quickly tickets are being resolved</CardDescription>
+                  <CardTitle className="text-slate-900 dark:text-white">Response Time Distribution</CardTitle>
+                  <CardDescription className="text-slate-600 dark:text-slate-300">How quickly tickets are being resolved</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     {mockAnalytics.responseTimeData.map((item) => (
                       <div key={item.timeRange} className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span>{item.timeRange}</span>
-                          <span>{item.tickets} tickets ({item.percentage}%)</span>
+                          <span className="text-slate-700 dark:text-slate-300">{item.timeRange}</span>
+                          <span className="text-slate-600 dark:text-slate-400">{item.tickets} tickets ({item.percentage}%)</span>
                         </div>
-                        <Progress value={item.percentage} />
+                        <Progress value={item.percentage} className="h-2" />
                       </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
                 <CardHeader>
-                  <CardTitle>Priority Distribution</CardTitle>
-                  <CardDescription>Tickets by priority level</CardDescription>
+                  <CardTitle className="text-slate-900 dark:text-white">Priority Distribution</CardTitle>
+                  <CardDescription className="text-slate-600 dark:text-slate-300">Tickets by priority level</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={mockAnalytics.priorityDistribution} layout="horizontal">
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis dataKey="name" type="category" width={80} />
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis type="number" className="text-xs" />
+                      <YAxis dataKey="name" type="category" width={80} className="text-xs" />
                       <Tooltip formatter={(value) => [`${value} tickets`, 'Count']} />
-                      <Bar dataKey="count" fill="hsl(var(--primary))" />
+                      <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -394,20 +418,21 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           <TabsContent value="satisfaction" className="space-y-4">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
               <CardHeader>
-                <CardTitle>Customer Satisfaction Trend</CardTitle>
-                <CardDescription>Daily customer satisfaction scores</CardDescription>
+                <CardTitle className="text-slate-900 dark:text-white">Customer Satisfaction Trend</CardTitle>
+                <CardDescription className="text-slate-600 dark:text-slate-300">Daily customer satisfaction scores</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={400}>
                   <LineChart data={mockAnalytics.satisfactionTrend}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                     <XAxis 
                       dataKey="date" 
                       tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                      className="text-xs"
                     />
-                    <YAxis domain={[80, 100]} />
+                    <YAxis domain={[80, 100]} className="text-xs" />
                     <Tooltip 
                       labelFormatter={(value) => new Date(value).toLocaleDateString()}
                       formatter={(value) => [`${value}%`, 'Satisfaction Score']}
@@ -415,9 +440,9 @@ export default function AnalyticsPage() {
                     <Line 
                       type="monotone" 
                       dataKey="score" 
-                      stroke="hsl(var(--primary))" 
+                      stroke="#8b5cf6" 
                       strokeWidth={3}
-                      dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
+                      dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>

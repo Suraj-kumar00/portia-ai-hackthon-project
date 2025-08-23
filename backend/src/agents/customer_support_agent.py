@@ -4,6 +4,8 @@ Using: https://app.portialabs.ai/dashboard/tool-calls
 """
 from typing import Dict, Any, List, Optional
 import structlog
+import asyncio
+import time
 
 # IMPORT SETTINGS INSTEAD OF USING OS.GETENV
 from ..config.settings import settings
@@ -71,6 +73,53 @@ class CustomerSupportAgent:
             logger.error(f"Failed to initialize CustomerSupportAgent: {str(e)}")
             raise
     
+    # ✅ CRITICAL: Enhanced timeout handling with better error detection
+    async def _call_portia_with_retry(self, task: str, max_retries: int = 3) -> Any:
+        """Call Portia API with proper timeout and error handling"""
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Portia API call attempt {attempt + 1}/{max_retries}")
+                
+                # ✅ CRITICAL: Shorter timeout to prevent hanging
+                plan_run = await asyncio.wait_for(
+                    self.portia.arun(task),
+                    timeout=15.0  # ✅ Reduced from 30s to 15s
+                )
+                
+                logger.info("✅ Portia API call succeeded", attempt=attempt + 1)
+                return plan_run
+                
+            except asyncio.TimeoutError as e:
+                logger.warning(f"Portia API timeout after 15s (attempt {attempt + 1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    wait_time = min(2 ** attempt, 4)  # Cap at 4 seconds
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    logger.error("Portia API failed after all timeout attempts")
+                    raise e
+                    
+            except Exception as e:
+                error_msg = str(e)
+                is_recoverable_error = any(keyword in error_msg.lower() for keyword in [
+                    "500", "timeout", "connection", "server error", "batch/ready", 
+                    "internal server error", "service unavailable", "bad gateway"
+                ])
+                
+                logger.warning(f"Portia API error: {error_msg}", 
+                             attempt=attempt + 1, 
+                             recoverable=is_recoverable_error)
+                
+                if is_recoverable_error and attempt < max_retries - 1:
+                    wait_time = min(2 ** attempt, 4)  # 1s, 2s, 4s max
+                    logger.info(f"Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    logger.error("Portia API failed permanently", error=error_msg)
+                    raise e
+    
     async def process_customer_query(
         self, 
         query: str, 
@@ -78,40 +127,22 @@ class CustomerSupportAgent:
         ticket_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Process customer query using Portia Cloud API
-        Enhanced with cloud storage, persistence, and advanced tools
+        Process customer query using Portia Cloud API with enhanced error handling
         """
         
-        customer_email = customer_context.get('customer_email', 'customer@example.com')
+        customer_email = customer_context.get('email', 'customer@example.com')
+        start_time = time.time()
         
-        # ✅ ENHANCED CLOUD-POWERED PROMPT
+        # ✅ SIMPLIFIED PROMPT to reduce processing time
         task = f"""
-You are a professional AI customer support agent powered by Portia Cloud.
-Help this customer with comprehensive support using all available tools.
+You are a professional AI customer support agent. Help this customer quickly and effectively.
 
 CUSTOMER: {customer_email}
 QUERY: "{query}"
 TICKET: {ticket_id or "New Support Request"}
 
-CLOUD-ENHANCED INSTRUCTIONS:
-1. 📧 Use Gmail tools with cloud authentication for professional responses  
-2. 📊 Use Google Sheets tools with cloud storage for persistent ticket tracking
-3. 📅 Use Google Calendar tools with team integration for scheduling
-4. 💬 Use Slack tools with enhanced team collaboration features
-5. 🔍 Use advanced research tools with cloud-powered search
-6. 📈 Use analytics tools to track customer satisfaction and metrics
-7. 🔒 All actions are logged and stored securely in Portia Cloud
-
-ENHANCED WORKFLOW:
-- Create comprehensive ticket in cloud-synced Google Sheets
-- Send professional email with cloud-enhanced templates
-- Schedule follow-ups with team calendar integration  
-- Notify team via Slack with rich context and history
-- Store all interactions in Portia Cloud for future reference
-- Generate insights and recommendations using cloud analytics
-
-Please provide comprehensive support to {customer_email} regarding: "{query}"
-Use all available Portia Cloud tools for the best customer experience.
+Please provide a helpful response to: "{query}"
+Keep your response concise and actionable.
         """
         
         try:
@@ -119,71 +150,88 @@ Use all available Portia Cloud tools for the best customer experience.
                        customer_email=customer_email,
                        has_cloud_api=bool(self.portia_api_key))
             
-            # ✅ EXECUTE WITH ENHANCED CLOUD FEATURES
-            plan_run = await self.portia.arun(task)
+            # ✅ EXECUTE WITH RETRY LOGIC AND TIMEOUT
+            plan_run = await self._call_portia_with_retry(task, max_retries=3)
             
-            # ✅ ENHANCED RESPONSE WITH CLOUD DATA
+            processing_time = (time.time() - start_time) * 1000
+            
+            # ✅ ENHANCED RESPONSE WITH PROPER DATA TYPES
             result = {
                 "success": True,
                 "plan_id": str(getattr(plan_run, 'id', f'plan_{hash(query)}')),
                 "state": str(getattr(plan_run, 'state', 'completed')),
                 "response": self._extract_response(plan_run),
                 "requires_human_approval": self._requires_approval(query),
-                "classification": self._classify_query(query),
+                "classification": self._classify_query(query),  # ✅ Returns proper string values
+                "suggested_actions": self._generate_suggested_actions(query),
                 "tools_used": self._get_tools_used(plan_run),
-                "cloud_features_used": bool(self.portia_api_key),
+                "confidence": self._calculate_confidence(plan_run),
                 "customer_context": customer_context,
-                "timestamp": "2025-08-23T10:57:00Z",
+                "processing_time_ms": processing_time,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 
-                # ✅ CLOUD-ENHANCED FEATURES
-                "cloud_storage_enabled": bool(self.portia_api_key),
-                "team_collaboration": bool(self.portia_api_key),
-                "advanced_analytics": bool(self.portia_api_key),
-                "persistent_history": bool(self.portia_api_key)
+                # ✅ CLOUD-ENHANCED FEATURES (all strings)
+                "cloud_storage_enabled": str(bool(self.portia_api_key)).lower(),
+                "team_collaboration": str(bool(self.portia_api_key)).lower(),
+                "advanced_analytics": str(bool(self.portia_api_key)).lower(),
+                "persistent_history": str(bool(self.portia_api_key)).lower()
             }
             
             logger.info("✅ Query processed successfully with Portia Cloud", 
                        plan_id=result["plan_id"],
-                       cloud_enabled=result["cloud_features_used"])
+                       cloud_enabled=result["classification"]["cloud_enhanced"],
+                       processing_time_ms=processing_time)
             
             return result
             
         except Exception as e:
-            logger.error(f"Portia Cloud execution failed: {str(e)}")
-            return self._fallback_response(query, customer_context, str(e))
+            processing_time = (time.time() - start_time) * 1000
+            logger.error(f"Portia Cloud execution failed after all retries: {str(e)}")
+            return self._fallback_response(query, customer_context, str(e), processing_time)
     
     def _extract_response(self, plan_run) -> str:
         """Extract AI response from Portia plan execution"""
         try:
-            for attr in ['final_output', 'step_outputs', 'result', 'output']:
+            # Try different attributes to extract the response
+            for attr in ['final_output', 'step_outputs', 'result', 'output', 'response']:
                 if hasattr(plan_run, attr):
                     value = getattr(plan_run, attr)
                     if value:
                         if isinstance(value, dict):
-                            return str(value.get('value', value))
-                        elif isinstance(value, list):
-                            return str(value[-1] if value else '')
+                            # Look for common response keys
+                            for key in ['response', 'message', 'result', 'output', 'value']:
+                                if key in value and value[key]:
+                                    return str(value[key])
+                            return str(value)
+                        elif isinstance(value, list) and value:
+                            return str(value[-1])  # Get last item
                         return str(value)
         except Exception as e:
             logger.warning(f"Error extracting response: {str(e)}")
         
-        return "Thank you for contacting us. I've processed your request using our AI-powered system and will follow up with a comprehensive response shortly."
+        # Default professional response
+        return "Thank you for contacting our support team. I've processed your request using our AI-powered system and will follow up with a comprehensive response shortly."
     
     def _requires_approval(self, query: str) -> bool:
-        """Enhanced approval detection with cloud intelligence"""
+        """Enhanced approval detection"""
         query_lower = query.lower()
+        
         high_priority_keywords = [
             'refund', 'cancel', 'delete account', 'escalate', 'manager',
             'complaint', 'angry', 'frustrated', 'lawsuit', 'security',
-            'breach', 'hack', 'fraud', 'urgent', 'emergency'
+            'breach', 'hack', 'fraud', 'urgent', 'emergency', 'critical'
         ]
         
-        financial_keywords = ['$100', '$200', '$500', '$1000', 'expensive', 'premium', 'enterprise']
+        financial_keywords = ['$', 'money', 'payment', 'charge', 'billing', 'subscription']
         
-        return any(keyword in query_lower for keyword in high_priority_keywords + financial_keywords)
+        # Check for high-priority keywords
+        has_high_priority = any(keyword in query_lower for keyword in high_priority_keywords)
+        has_financial = any(keyword in query_lower for keyword in financial_keywords)
+        
+        return has_high_priority or has_financial
     
     def _classify_query(self, query: str) -> Dict[str, str]:
-        """Enhanced query classification with cloud ML"""
+        """Enhanced query classification - ALL VALUES ARE STRINGS"""
         query_lower = query.lower()
         
         # Enhanced categorization
@@ -207,8 +255,8 @@ Use all available Portia Cloud tools for the best customer experience.
         urgency_mapping = {
             "urgent": ['urgent', 'asap', 'immediately', 'emergency', 'critical'],
             "high": ['soon', 'quickly', 'fast', 'priority', 'important', 'angry', 'frustrated'],
-            "medium": ['normal', 'regular', 'standard'],
-            "low": ['when convenient', 'no rush', 'low priority']
+            "medium": ['normal', 'regular', 'standard', 'help', 'support'],
+            "low": ['when convenient', 'no rush', 'low priority', 'whenever']
         }
         
         urgency = "medium"
@@ -221,8 +269,8 @@ Use all available Portia Cloud tools for the best customer experience.
         sentiment_keywords = {
             "very_negative": ['hate', 'terrible', 'awful', 'worst', 'furious'],
             "negative": ['angry', 'frustrated', 'disappointed', 'bad', 'poor'],
-            "neutral": ['okay', 'fine', 'average', 'normal'],
-            "positive": ['good', 'happy', 'satisfied', 'great', 'excellent'],
+            "neutral": ['help', 'support', 'question', 'how', 'what', 'when'],
+            "positive": ['good', 'happy', 'satisfied', 'great', 'excellent', 'thanks'],
             "very_positive": ['love', 'amazing', 'fantastic', 'perfect', 'outstanding']
         }
         
@@ -232,20 +280,70 @@ Use all available Portia Cloud tools for the best customer experience.
                 sentiment = sent
                 break
         
+        # Calculate confidence based on keyword matches
+        confidence = 0.7  # Base confidence
+        if any(word in query_lower for word in ['help', 'support', 'question']):
+            confidence += 0.1
+        if len(query.split()) > 5:  # Longer queries are more informative
+            confidence += 0.1
+        
+        # ✅ CRITICAL: ALL VALUES MUST BE STRINGS
         return {
             "category": category,
+            "priority": "high" if urgency in ["urgent", "high"] else "medium" if urgency == "medium" else "low",
             "urgency": urgency,
             "sentiment": sentiment,
-            "cloud_enhanced": bool(self.portia_api_key)
+            "cloud_enhanced": str(bool(self.portia_api_key)).lower(),  # ✅ String boolean
+            "confidence": str(min(confidence, 1.0))  # ✅ String confidence
         }
+    
+    def _generate_suggested_actions(self, query: str) -> List[Dict[str, Any]]:
+        """Generate suggested actions based on query analysis"""
+        query_lower = query.lower()
+        actions = []
+        
+        if any(word in query_lower for word in ['refund', 'cancel', 'money back']):
+            actions.append({
+                "action_type": "process_refund",
+                "description": "Process refund request",
+                "requires_approval": True,
+                "priority": "high"
+            })
+        
+        if any(word in query_lower for word in ['technical', 'error', 'bug', 'not working']):
+            actions.append({
+                "action_type": "technical_support",
+                "description": "Escalate to technical support team",
+                "requires_approval": False,
+                "priority": "medium"
+            })
+        
+        if any(word in query_lower for word in ['angry', 'frustrated', 'complaint']):
+            actions.append({
+                "action_type": "escalate_to_manager",
+                "description": "Escalate to customer success manager",
+                "requires_approval": False,
+                "priority": "high"
+            })
+        
+        # Default action if no specific actions identified
+        if not actions:
+            actions.append({
+                "action_type": "standard_response",
+                "description": "Provide standard support response",
+                "requires_approval": False,
+                "priority": "medium"
+            })
+        
+        return actions
     
     def _get_tools_used(self, plan_run) -> List[str]:
         """Extract tools used with cloud enhancement info"""
         base_tools = [
-            "portia_cloud_gmail_tool" if self.portia_api_key else "portia_local_gmail_tool",
-            "portia_cloud_sheets_tool" if self.portia_api_key else "portia_local_sheets_tool", 
+            f"portia_{'cloud' if self.portia_api_key else 'local'}_gmail_tool",
+            f"portia_{'cloud' if self.portia_api_key else 'local'}_sheets_tool", 
             "portia_cloud_llm_tool",
-            "portia_cloud_research_tool" if self.portia_api_key else "portia_local_research_tool"
+            f"portia_{'cloud' if self.portia_api_key else 'local'}_research_tool"
         ]
         
         if self.portia_api_key:
@@ -257,28 +355,77 @@ Use all available Portia Cloud tools for the best customer experience.
         
         return base_tools
     
+    def _calculate_confidence(self, plan_run) -> float:
+        """Calculate confidence score based on plan execution"""
+        try:
+            # Try to extract confidence from plan run
+            if hasattr(plan_run, 'confidence'):
+                return float(getattr(plan_run, 'confidence'))
+            
+            # Default confidence based on successful execution
+            return 0.8 if plan_run else 0.5
+            
+        except Exception:
+            return 0.5
+    
     def _fallback_response(
         self, 
         query: str, 
         customer_context: Dict[str, Any], 
-        error: Optional[str] = None
+        error: Optional[str] = None,
+        processing_time: float = 0
     ) -> Dict[str, Any]:
-        """Enhanced fallback with cloud status"""
+        """Enhanced fallback with proper string values"""
         return {
             "success": True,
             "plan_id": f"fallback_{hash(query)}",
             "state": "completed",
-            "response": f"Thank you for your inquiry: '{query}'. Our AI system is processing your request and will respond with a detailed solution within 24 hours.",
-            "requires_human_approval": self._requires_approval(query),
-            "classification": self._classify_query(query),
+            "response": f"Thank you for your inquiry. Our AI system is currently experiencing high demand. Your request has been logged and our team will respond within 24 hours with a detailed solution.",
+            "requires_human_approval": True,
+            "classification": {
+                "category": "general_inquiry",
+                "priority": "medium",
+                "urgency": "medium",
+                "sentiment": "neutral",
+                "cloud_enhanced": "false",  # ✅ String boolean
+                "confidence": "0.5"  # ✅ String confidence
+            },
+            "suggested_actions": [
+                {
+                    "action_type": "human_review_required",
+                    "description": "AI temporarily unavailable - human review queued",
+                    "requires_approval": False,
+                    "priority": "medium"
+                }
+            ],
             "tools_used": ["fallback_system"],
+            "confidence": 0.5,
             "customer_context": customer_context,
-            "cloud_features_used": False,
-            "fallback_reason": error or "Portia temporarily unavailable",
-            "timestamp": "2025-08-23T10:57:00Z"
+            "processing_time_ms": processing_time,
+            "fallback_reason": error or "Portia Cloud API temporarily unavailable",
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            
+            # ✅ CLOUD FEATURES (all strings)
+            "cloud_storage_enabled": "false",
+            "team_collaboration": "false", 
+            "advanced_analytics": "false",
+            "persistent_history": "false"
         }
     
-    # ✅ CLOUD-ENHANCED UTILITY METHODS
+    # ✅ ENHANCED UTILITY METHODS
+    
+    async def approve_action(self, plan_id: str, approved: bool, reason: Optional[str] = None) -> Dict[str, Any]:
+        """Handle human approval for AI actions"""
+        logger.info("Processing AI action approval", 
+                   plan_id=plan_id, approved=approved, reason=reason)
+        
+        return {
+            "plan_id": plan_id,
+            "approved": approved,
+            "reason": reason or "No reason provided",
+            "processed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "next_action": "continue_execution" if approved else "halt_execution"
+        }
     
     async def get_cloud_analytics(self) -> Dict[str, Any]:
         """Get analytics from Portia Cloud dashboard"""
@@ -297,11 +444,11 @@ Use all available Portia Cloud tools for the best customer experience.
         return {
             "plan_id": plan_id,
             "status": "completed",
-            "cloud_storage": bool(self.portia_api_key),
-            "persistent_history": bool(self.portia_api_key),
-            "team_visibility": bool(self.portia_api_key),
-            "advanced_analytics": bool(self.portia_api_key),
+            "cloud_storage": str(bool(self.portia_api_key)).lower(),
+            "persistent_history": str(bool(self.portia_api_key)).lower(),
+            "team_visibility": str(bool(self.portia_api_key)).lower(),
+            "advanced_analytics": str(bool(self.portia_api_key)).lower(),
             "tools_used": self._get_tools_used(None),
-            "created_at": "2025-08-23T10:57:00Z",
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "dashboard_url": "https://app.portialabs.ai/dashboard/tool-calls" if self.portia_api_key else None
         }

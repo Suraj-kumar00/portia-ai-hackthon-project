@@ -76,8 +76,8 @@ export default function TicketsPage() {
 
   if (!isLoaded || !isSignedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50 dark:from-slate-950 dark:via-purple-950/20 dark:to-slate-900">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500"></div>
       </div>
     )
   }
@@ -149,35 +149,45 @@ export default function TicketsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/20 to-blue-50 dark:from-slate-950 dark:via-purple-950/10 dark:to-slate-900">
+      {/* Animated Background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+      </div>
+
       {/* Header */}
-      <header className="border-b bg-card">
+      <header className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-white/20 dark:border-slate-800/20">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm">
+              <Link href="/dashboard" className="cursor-pointer">
+                <Button variant="ghost" size="sm" className="hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl cursor-pointer">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Dashboard
                 </Button>
               </Link>
               <div className="flex items-center space-x-2">
-                <Bot className="h-6 w-6 text-primary" />
-                <h1 className="text-2xl font-bold">Support Tickets</h1>
+                <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-500 rounded-xl shadow-lg">
+                  <Bot className="h-6 w-6 text-white" />
+                </div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">Support Tickets</h1>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button onClick={refreshTickets} variant="outline" size="sm" disabled={isLoading}>
+              <Button onClick={refreshTickets} variant="outline" size="sm" disabled={isLoading} className="border-purple-200 hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-900/20 rounded-xl cursor-pointer">
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-              <Link href="/dashboard/tickets/new">
-                <Button>
+              <Link href="/dashboard/tickets/new" className="cursor-pointer">
+                <Button className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-lg rounded-xl cursor-pointer">
                   <Plus className="w-4 h-4 mr-2" />
                   New Ticket
                 </Button>
               </Link>
-              <UserButton afterSignOutUrl="/" />
+              <div className="cursor-pointer">
+                <UserButton afterSignOutUrl="/" />
+              </div>
             </div>
           </div>
         </div>
@@ -185,46 +195,53 @@ export default function TicketsPage() {
 
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Filters */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
           <CardHeader>
-            <CardTitle>Filter Tickets</CardTitle>
-            <CardDescription>Search and filter your support tickets</CardDescription>
+            <CardTitle className="flex items-center text-slate-900 dark:text-white">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl mr-3">
+                <Filter className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              Filter Tickets
+            </CardTitle>
+            <CardDescription className="text-slate-600 dark:text-slate-300">Search and filter your support tickets</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 p-1 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <Search className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  </div>
                   <Input
                     placeholder="Search tickets..."
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="pl-10"
+                    className="pl-12 rounded-xl border-2 border-slate-200 dark:border-slate-700 focus:border-purple-500 bg-white/50 dark:bg-slate-800/50"
                   />
                 </div>
               </div>
               <Select value={statusFilter} onValueChange={handleStatusFilter}>
-                <SelectTrigger className="w-full md:w-32">
+                <SelectTrigger className="w-full md:w-40 rounded-xl border-2 border-slate-200 dark:border-slate-700 focus:border-purple-500 cursor-pointer">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
+                <SelectContent className="backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border border-white/20 dark:border-slate-800/20 rounded-xl shadow-xl">
+                  <SelectItem value="all" className="cursor-pointer">All Status</SelectItem>
+                  <SelectItem value="open" className="cursor-pointer">Open</SelectItem>
+                  <SelectItem value="in_progress" className="cursor-pointer">In Progress</SelectItem>
+                  <SelectItem value="resolved" className="cursor-pointer">Resolved</SelectItem>
+                  <SelectItem value="closed" className="cursor-pointer">Closed</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={handlePriorityFilter}>
-                <SelectTrigger className="w-full md:w-32">
+                <SelectTrigger className="w-full md:w-40 rounded-xl border-2 border-slate-200 dark:border-slate-700 focus:border-purple-500 cursor-pointer">
                   <SelectValue placeholder="Priority" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priority</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
+                <SelectContent className="backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border border-white/20 dark:border-slate-800/20 rounded-xl shadow-xl">
+                  <SelectItem value="all" className="cursor-pointer">All Priority</SelectItem>
+                  <SelectItem value="urgent" className="cursor-pointer">Urgent</SelectItem>
+                  <SelectItem value="high" className="cursor-pointer">High</SelectItem>
+                  <SelectItem value="medium" className="cursor-pointer">Medium</SelectItem>
+                  <SelectItem value="low" className="cursor-pointer">Low</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -232,32 +249,32 @@ export default function TicketsPage() {
         </Card>
 
         {/* Tickets Table */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
           <CardHeader>
-            <CardTitle>Tickets ({filteredTickets.length})</CardTitle>
-            <CardDescription>Manage your customer support tickets</CardDescription>
+            <CardTitle className="text-slate-900 dark:text-white">Tickets ({filteredTickets.length})</CardTitle>
+            <CardDescription className="text-slate-600 dark:text-slate-300">Manage your customer support tickets</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden backdrop-blur-sm bg-white/30 dark:bg-slate-800/30">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Ticket ID</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                  <TableRow className="border-slate-200 dark:border-slate-700 hover:bg-white/50 dark:hover:bg-slate-800/50">
+                    <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Ticket ID</TableHead>
+                    <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Subject</TableHead>
+                    <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Customer</TableHead>
+                    <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Status</TableHead>
+                    <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Priority</TableHead>
+                    <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Assigned To</TableHead>
+                    <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Created</TableHead>
+                    <TableHead className="text-slate-700 dark:text-slate-300 font-semibold">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredTickets.map((ticket) => (
-                    <TableRow key={ticket.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">{ticket.id}</TableCell>
-                      <TableCell className="max-w-xs truncate">{ticket.subject}</TableCell>
-                      <TableCell>{ticket.customer}</TableCell>
+                    <TableRow key={ticket.id} className="border-slate-200 dark:border-slate-700 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
+                      <TableCell className="font-medium text-slate-900 dark:text-white">{ticket.id}</TableCell>
+                      <TableCell className="max-w-xs truncate text-slate-700 dark:text-slate-300">{ticket.subject}</TableCell>
+                      <TableCell className="text-slate-700 dark:text-slate-300">{ticket.customer}</TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(ticket.status)}>
                           {ticket.status.replace('_', ' ')}
@@ -268,11 +285,11 @@ export default function TicketsPage() {
                           {ticket.priority}
                         </Badge>
                       </TableCell>
-                      <TableCell>{ticket.assignedTo}</TableCell>
-                      <TableCell>{formatDate(ticket.created)}</TableCell>
+                      <TableCell className="text-slate-700 dark:text-slate-300">{ticket.assignedTo}</TableCell>
+                      <TableCell className="text-slate-700 dark:text-slate-300">{formatDate(ticket.created)}</TableCell>
                       <TableCell>
-                        <Link href={`/dashboard/tickets/${ticket.id}`}>
-                          <Button variant="ghost" size="sm">View</Button>
+                        <Link href={`/dashboard/tickets/${ticket.id}`} className="cursor-pointer">
+                          <Button variant="ghost" size="sm" className="hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl cursor-pointer">View</Button>
                         </Link>
                       </TableCell>
                     </TableRow>
@@ -282,8 +299,12 @@ export default function TicketsPage() {
             </div>
             
             {filteredTickets.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No tickets found matching your criteria.</p>
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-8 h-8 text-white" />
+                </div>
+                <p className="text-slate-600 dark:text-slate-300 text-lg font-medium">No tickets found matching your criteria</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">Try adjusting your search filters or create a new ticket</p>
               </div>
             )}
           </CardContent>

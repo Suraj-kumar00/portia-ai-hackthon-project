@@ -8,7 +8,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ENUMS - This was missing and causing all the errors
+// ENUMS
 enum TicketStatus {
   OPEN
   IN_PROGRESS
@@ -84,7 +84,8 @@ model Ticket {
   
   // Relations
   conversations Conversation[]
-  approvals     HumanApproval[]
+  human_approvals HumanApproval[]  
+  approvals     Approval[]        
   
   @@map("tickets")
   @@index([customer_id])
@@ -137,6 +138,28 @@ model HumanApproval {
   @@index([ticket_id])
   @@index([status])
   @@index([created_at])
+}
+
+// ✅ NEW: Simplified Approval model (this is what your code expects)
+model Approval {
+  id           String   @id @default(cuid()) 
+  ticket_id    String   
+  action_type  String   
+  ai_suggestion String   
+  status       String   @default("PENDING")
+  approved_by  String?  
+  reason       String?
+  plan_id      String?  
+  metadata     Json?
+  created_at   DateTime @default(now()) 
+  decided_at   DateTime? 
+  
+  // Relations
+  ticket       Ticket   @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  
+  @@map("approvals")
+  @@index([ticket_id])
+  @@index([status])
 }
 
 model AgentConfiguration {
