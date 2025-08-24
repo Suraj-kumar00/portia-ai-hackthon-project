@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs'
+import { auth } from '@clerk/nextjs/server'
 
 // Mock tickets data - in real app, this would come from database
 const mockTickets = [
@@ -29,8 +29,8 @@ const mockTickets = [
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const { userId } = auth()
+    // Check authentication - auth() is now async and must be awaited
+    const { userId } = await auth()
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -76,8 +76,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const { userId } = auth()
+    // Check authentication - auth() is now async and must be awaited
+    const { userId } = await auth()
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },

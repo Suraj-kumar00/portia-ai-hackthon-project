@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs'
+import { auth } from '@clerk/nextjs/server'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
@@ -19,13 +19,14 @@ class ApiClient {
   private async getAuthToken(): Promise<string | null> {
     try {
       if (typeof window !== 'undefined') {
-        // Client-side: get token from Clerk
-        const { getToken } = await import('@clerk/nextjs')
+        // Client-side: get token from useAuth hook
+        const { useAuth } = await import('@clerk/nextjs')
+        const { getToken } = useAuth()
         return await getToken()
       } else {
-        // Server-side: get token from auth()
-        const { getToken } = auth()
-        return await getToken()
+        // Server-side: get token from auth() - now async in v5
+        const authResult = await auth()
+        return await authResult.getToken()
       }
     } catch (error) {
       console.warn('Failed to get Clerk token:', error)
@@ -155,6 +156,7 @@ export async function withErrorHandling<T>(
   }
 }
 
+// Fixed the TypeScript error here
 export function isApiError(error: unknown): error is Error {
   return error instanceof Error
 }
