@@ -1,363 +1,306 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useUser, UserButton } from '@clerk/nextjs'
+import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import Link from 'next/link'
+import { useUser, UserButton } from '@clerk/nextjs'
+import {
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
+} from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Send, Bot, User, Clock, MessageSquare } from 'lucide-react'
-import Link from 'next/link'
-import { formatDate, formatRelativeTime } from '@/lib/utils'
+import { Textarea } from '@/components/ui/textarea'
+import { api, type Ticket } from '@/lib/api'
+import { ArrowLeft, User as UserIcon, Bot, CheckCircle2 } from 'lucide-react'
 
-// Mock ticket data
-const mockTicket = {
-  id: 'TKT-001',
-  subject: 'Login issues after password reset',
-  description: 'I reset my password yesterday but I\'m still unable to login to my account. I\'ve tried clearing my browser cache and using different browsers, but the issue persists. The error message says "Invalid credentials" even though I\'m using the new password.',
-  customer: {
-    name: 'John Doe',
-    email: 'john@example.com',
-    avatar: null
-  },
-  status: 'open',
-  priority: 'high',
-  category: 'technical',
-  created: '2025-08-23T09:15:00Z',
-  updated: '2025-08-23T10:30:00Z',
-  assignedTo: 'AI Assistant',
-  tags: ['password', 'login', 'authentication']
+type Conversation = {
+  id: string
+  ticket_id: string
+  customer_id?: string | null
+  content: string
+  role: 'CUSTOMER' | 'AI_AGENT' | 'HUMAN_AGENT'
+  metadata?: any
+  created_at: string
 }
 
-const mockResponses = [
-  {
-    id: '1',
-    author: 'John Doe',
-    authorType: 'customer',
-    content: 'I reset my password yesterday but I\'m still unable to login to my account. I\'ve tried clearing my browser cache and using different browsers, but the issue persists.',
-    timestamp: '2025-08-23T09:15:00Z',
-    isAI: false
-  },
-  {
-    id: '2',
-    author: 'AI Assistant',
-    authorType: 'agent',
-    content: 'Thank you for contacting us, John. I understand you\'re experiencing login issues after resetting your password. Let me help you resolve this. First, could you please confirm that you\'re using the exact password that was sent to your email? Also, please try logging in using an incognito/private browsing window to rule out any browser-related issues.',
-    timestamp: '2025-08-23T09:25:00Z',
-    isAI: true
-  },
-  {
-    id: '3',
-    author: 'John Doe',
-    authorType: 'customer',
-    content: 'Yes, I\'m using the exact password from the email. I also tried incognito mode but still get the same error.',
-    timestamp: '2025-08-23T09:45:00Z',
-    isAI: false
-  }
-]
+type Approval = {
+  id: string
+  ticket_id: string
+  action_type: string
+  ai_suggestion: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  approved_by?: string | null
+  reason?: string | null
+  created_at?: string
+  decided_at?: string | null
+}
+
+type TicketDetail = Ticket & {
+  customer?: {
+    id: string
+    email: string
+    name?: string | null
+    phone?: string | null
+    company?: string | null
+    segment?: string | null
+    created_at?: string
+    updated_at?: string
+  } | null
+  conversations?: Conversation[] | null
+  approvals?: Approval[] | null
+}
 
 export default function TicketDetailPage() {
-  const { isLoaded, isSignedIn, user } = useUser()
   const params = useParams()
-  const [ticket, setTicket] = useState(mockTicket)
-  const [responses, setResponses] = useState(mockResponses)
-  const [newResponse, setNewResponse] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [ticketStatus, setTicketStatus] = useState(mockTicket.status)
-  const [ticketPriority, setTicketPriority] = useState(mockTicket.priority)
+  const id = String(params?.id ?? '')
+  const { isLoaded, isSignedIn } = useUser()
+  const [ticket, setTicket] = useState<TicketDetail | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isSignedIn || !id) return
+    ;(async () => {
+      setIsLoading(true)
+      setError(null)
+      const res = await api.getTicket(id)
+      if (res.success && res.data) {
+        setTicket(res.data as TicketDetail)
+      } else {
+        setError(res.error || 'Failed to load ticket')
+      }
+      setIsLoading(false)
+    })()
+  }, [isSignedIn, id])
 
   if (!isLoaded || !isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50 dark:from-slate-950 dark:via-purple-950/20 dark:to-slate-900">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500" />
       </div>
     )
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-      case 'in_progress': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-      case 'resolved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-      case 'closed': return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-    }
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50 dark:from-slate-950 dark:via-purple-950/20 dark:to-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-4" />
+          <p className="text-slate-600 dark:text-slate-300">Loading ticket...</p>
+        </div>
+      </div>
+    )
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-      case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-      case 'low': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-    }
+  if (error || !ticket) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/20 to-blue-50 dark:from-slate-950 dark:via-purple-950/10 dark:to-slate-900">
+        <header className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-white/20 dark:border-slate-800/20">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <Link href="/dashboard/tickets" className="cursor-pointer">
+              <Button variant="ghost" size="sm" className="hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl cursor-pointer">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Tickets
+              </Button>
+            </Link>
+            <UserButton afterSignOutUrl="/" />
+          </div>
+        </header>
+        <div className="container mx-auto px-4 py-8">
+          <Card className="backdrop-blur-xl bg-red-50/60 dark:bg-red-900/20 border-red-200 dark:border-red-800 shadow-xl">
+            <CardContent className="py-6 text-red-800 dark:text-red-200">
+              {error || 'Ticket not found'}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
-  const handleSubmitResponse = async () => {
-    if (!newResponse.trim()) return
+  const customerEmail = ticket.customer?.email || ticket.customer_email || ''
+  const statusLabel = (ticket.status || '').replace('_', ' ')
+  const priority = (ticket.priority || '').toUpperCase()
 
-    setIsSubmitting(true)
-    
-    // Simulate API call
-    const response = {
-      id: Date.now().toString(),
-      author: user.firstName + ' ' + user.lastName || user.emailAddresses[0].emailAddress,
-      authorType: 'agent' as const,
-      content: newResponse,
-      timestamp: new Date().toISOString(),
-      isAI: false
-    }
-    
-    setResponses([...responses, response])
-    setNewResponse('')
-    setIsSubmitting(false)
+  const getStatusBadge = (s: string) => {
+    const v = (s || '').toLowerCase()
+    if (v === 'open') return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+    if (v === 'in_progress') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+    if (v === 'resolved') return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+    if (v === 'closed') return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
   }
 
-  const handleStatusUpdate = (newStatus: string) => {
-    setTicketStatus(newStatus)
-    // In real app, make API call to update status
-  }
-
-  const handlePriorityUpdate = (newPriority: string) => {
-    setTicketPriority(newPriority)
-    // In real app, make API call to update priority
+  const getPriorityBadge = (p: string) => {
+    const v = (p || '').toLowerCase()
+    if (v === 'urgent') return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+    if (v === 'high') return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+    if (v === 'medium') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+    if (v === 'low') return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/20 to-blue-50 dark:from-slate-950 dark:via-purple-950/10 dark:to-slate-900">
-      {/* Animated Background */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
-      </div>
-
       {/* Header */}
       <header className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-white/20 dark:border-slate-800/20">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard/tickets" className="cursor-pointer">
-                <Button variant="ghost" size="sm" className="hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl cursor-pointer">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Tickets
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">{ticket.id}</h1>
-                <p className="text-sm text-slate-600 dark:text-slate-300">{ticket.subject}</p>
-              </div>
-            </div>
-            <div className="cursor-pointer">
-              <UserButton afterSignOutUrl="/" />
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Link href="/dashboard/tickets" className="cursor-pointer">
+              <Button variant="ghost" size="sm" className="hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl cursor-pointer">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Tickets
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-xl font-semibold text-slate-900 dark:text-white">{ticket.id}</h1>
+              <p className="text-sm text-slate-600 dark:text-slate-300">{ticket.subject || 'Ticket'}</p>
             </div>
           </div>
+          <UserButton afterSignOutUrl="/" />
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Ticket Details */}
-            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-slate-900 dark:text-white">Ticket Details</CardTitle>
-                  <div className="flex items-center space-x-2">
-                    <Badge className={getStatusColor(ticketStatus)}>
-                      {ticketStatus.replace('_', ' ')}
-                    </Badge>
-                    <Badge className={getPriorityColor(ticketPriority)}>
-                      {ticketPriority}
-                    </Badge>
-                  </div>
-                </div>
+      <div className="container mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: details + conversations */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-slate-900 dark:text-white">Ticket Details</CardTitle>
                 <CardDescription className="text-slate-600 dark:text-slate-300">
-                  Created by {ticket.customer.name} on {formatDate(ticket.created)}
+                  Created at {new Date(ticket.created_at).toLocaleString()}
                 </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium mb-2 text-slate-900 dark:text-white">Description</h4>
-                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                      {ticket.description}
-                    </p>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    {ticket.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                        {tag}
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className={getStatusBadge(ticket.status)}>{statusLabel}</Badge>
+                <Badge className={getPriorityBadge(ticket.priority)}>{priority}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                  {(ticket as any).description || ticket.query || 'No description provided.'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-slate-900 dark:text-white">Conversation ({ticket.conversations?.length ?? 0})</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(ticket.conversations ?? []).map((c) => (
+                <div key={c.id} className="p-3 rounded-xl bg-white/50 dark:bg-slate-800/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`p-2 rounded-xl ${c.role === 'AI_AGENT' ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
+                      {c.role === 'AI_AGENT' ? <Bot className="w-4 h-4 text-purple-600 dark:text-purple-400" /> : <UserIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+                    </div>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                      {new Date(c.created_at).toLocaleString()}
+                    </span>
+                    {c.role === 'AI_AGENT' && c.metadata?.plan_id && (
+                      <Badge variant="secondary" className="ml-2 bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                        plan: {String(c.metadata.plan_id).slice(0, 8)}…
                       </Badge>
+                    )}
+                  </div>
+                  <div className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{c.content}</div>
+                </div>
+              ))}
+
+              {(ticket.conversations ?? []).length === 0 && (
+                <div className="text-slate-600 dark:text-slate-300">No conversation yet.</div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right: customer + management */}
+        <div className="space-y-6">
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-slate-900 dark:text-white">Customer Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                  <UserIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <div className="text-slate-900 dark:text-white font-medium">
+                    {ticket.customer?.name || customerEmail.split('@')[0]}
+                  </div>
+                  <div className="text-slate-600 dark:text-slate-300">{customerEmail}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-slate-900 dark:text-white">Ticket Management</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Status</div>
+                <Select value={ticket.status} disabled>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="OPEN">Open</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="RESOLVED">Resolved</SelectItem>
+                    <SelectItem value="CLOSED">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Priority</div>
+                <Select value={ticket.priority} disabled>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LOW">Low</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                    <SelectItem value="URGENT">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                Created: {new Date(ticket.created_at).toLocaleString()}
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                Updated: {new Date(ticket.updated_at).toLocaleString()}
+              </div>
+
+              {(ticket.approvals ?? []).length > 0 && (
+                <div className="pt-2">
+                  <div className="text-sm font-medium text-slate-900 dark:text-white mb-2">Approvals</div>
+                  <div className="space-y-2">
+                    {ticket.approvals!.map(a => (
+                      <div key={a.id} className="p-3 rounded-xl bg-white/50 dark:bg-slate-800/50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CheckCircle2 className={`w-4 h-4 ${a.status === 'APPROVED' ? 'text-green-600' : a.status === 'REJECTED' ? 'text-red-600' : 'text-yellow-600'}`} />
+                          <span className="text-sm text-slate-700 dark:text-slate-300">{a.action_type}</span>
+                          <Badge variant="secondary" className="ml-2">
+                            {a.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          {a.ai_suggestion}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Conversation */}
-            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center text-slate-900 dark:text-white">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl mr-3">
-                    <MessageSquare className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  Conversation ({responses.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {responses.map((response) => (
-                    <div key={response.id} className="flex space-x-4">
-                      <div className="flex-shrink-0">
-                        {response.isAI ? (
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-600 to-purple-500 flex items-center justify-center shadow-lg">
-                            <Bot className="w-5 h-5 text-white" />
-                          </div>
-                        ) : (
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-slate-400 to-slate-500 flex items-center justify-center shadow-lg">
-                            <User className="w-5 h-5 text-white" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center space-x-3">
-                          <span className="font-medium text-sm text-slate-900 dark:text-white">{response.author}</span>
-                          {response.isAI && (
-                            <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                              AI Assistant
-                            </Badge>
-                          )}
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            {formatRelativeTime(response.timestamp)}
-                          </span>
-                        </div>
-                        <div className="text-sm leading-relaxed backdrop-blur-sm bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl border border-white/20 dark:border-slate-700/20">
-                          {response.content}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Response Form */}
-            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-slate-900 dark:text-white">Add Response</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Textarea
-                    placeholder="Type your response..."
-                    value={newResponse}
-                    onChange={(e) => setNewResponse(e.target.value)}
-                    rows={4}
-                    className="rounded-xl border-2 border-slate-200 dark:border-slate-700 focus:border-purple-500 bg-white/50 dark:bg-slate-800/50"
-                  />
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={handleSubmitResponse} 
-                      disabled={isSubmitting || !newResponse.trim()}
-                      className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-lg rounded-xl cursor-pointer"
-                    >
-                      {isSubmitting ? (
-                        <>Sending...</>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4 mr-2" />
-                          Send Response
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Customer Info */}
-            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-slate-900 dark:text-white">Customer Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 flex items-center justify-center shadow-lg">
-                      <User className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <span className="font-medium text-slate-900 dark:text-white block">{ticket.customer.name}</span>
-                      <span className="text-sm text-slate-600 dark:text-slate-300">{ticket.customer.email}</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Ticket Management */}
-            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-slate-900 dark:text-white">Ticket Management</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block text-slate-700 dark:text-slate-300">Status</label>
-                  <Select value={ticketStatus} onValueChange={handleStatusUpdate}>
-                    <SelectTrigger className="rounded-xl border-2 border-slate-200 dark:border-slate-700 focus:border-purple-500 cursor-pointer">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border border-white/20 dark:border-slate-800/20 rounded-xl shadow-xl">
-                      <SelectItem value="open" className="cursor-pointer">Open</SelectItem>
-                      <SelectItem value="in_progress" className="cursor-pointer">In Progress</SelectItem>
-                      <SelectItem value="resolved" className="cursor-pointer">Resolved</SelectItem>
-                      <SelectItem value="closed" className="cursor-pointer">Closed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block text-slate-700 dark:text-slate-300">Priority</label>
-                  <Select value={ticketPriority} onValueChange={handlePriorityUpdate}>
-                    <SelectTrigger className="rounded-xl border-2 border-slate-200 dark:border-slate-700 focus:border-purple-500 cursor-pointer">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border border-white/20 dark:border-slate-800/20 rounded-xl shadow-xl">
-                      <SelectItem value="low" className="cursor-pointer">Low</SelectItem>
-                      <SelectItem value="medium" className="cursor-pointer">Medium</SelectItem>
-                      <SelectItem value="high" className="cursor-pointer">High</SelectItem>
-                      <SelectItem value="urgent" className="cursor-pointer">Urgent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Separator className="bg-slate-200 dark:bg-slate-700" />
-
-                <div className="space-y-3 text-sm">
-                  {[
-                    { label: 'Created:', value: formatDate(ticket.created) },
-                    { label: 'Updated:', value: formatDate(ticket.updated) },
-                    { label: 'Category:', value: ticket.category },
-                    { label: 'Assigned to:', value: ticket.assignedTo }
-                  ].map((item, index) => (
-                    <div key={index} className="flex justify-between p-2 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
-                      <span className="text-slate-600 dark:text-slate-400">{item.label}</span>
-                      <span className="text-slate-900 dark:text-white font-medium">{item.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

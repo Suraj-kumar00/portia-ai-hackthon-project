@@ -1,68 +1,62 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useUser, UserButton } from '@clerk/nextjs'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
+} from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts'
-import { MessageSquare, Users, Clock, CheckCircle, AlertCircle, Plus, Bot, TrendingUp, BarChart3 } from 'lucide-react'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts'
+import {
+  MessageSquare, Users, Clock, CheckCircle, AlertCircle, Plus, Bot, TrendingUp, BarChart3,
+} from 'lucide-react'
 import Link from 'next/link'
+import { api, type Ticket, type TicketsResponse } from '@/lib/api'
 
-// Mock data - replace with real API calls
-const mockStats = {
-  totalTickets: 1247,
-  openTickets: 89,
-  resolvedToday: 23,
-  avgResponseTime: '2.4h',
-  satisfactionScore: 94
+type DashboardMetrics = {
+  total_tickets: number
+  open_tickets: number
+  tickets_today: number
+  ai_resolved_tickets: number
+  avg_response_time_minutes: number
+  customer_satisfaction: number  // expected 1..5 scale; converted to %
+  ai_automation_rate: number     // %
 }
-
-const mockTickets = [
-  {
-    id: 'TKT-001',
-    subject: 'Login issues after password reset',
-    customer: 'john@example.com',
-    status: 'open',
-    priority: 'high',
-    created: '2025-08-23T09:15:00Z',
-    category: 'technical'
-  },
-  {
-    id: 'TKT-002',
-    subject: 'Billing inquiry for premium plan',
-    customer: 'sarah@example.com',
-    status: 'in_progress',
-    priority: 'medium',
-    created: '2025-08-23T08:30:00Z',
-    category: 'billing'
-  },
-  {
-    id: 'TKT-003',
-    subject: 'Feature request: Dark mode',
-    customer: 'mike@example.com',
-    status: 'resolved',
-    priority: 'low',
-    created: '2025-08-22T16:45:00Z',
-    category: 'feature_request'
-  }
-]
-
-const chartData = [
-  { name: 'Mon', tickets: 12, resolved: 10 },
-  { name: 'Tue', tickets: 19, resolved: 15 },
-  { name: 'Wed', tickets: 15, resolved: 18 },
-  { name: 'Thu', tickets: 22, resolved: 20 },
-  { name: 'Fri', tickets: 18, resolved: 16 },
-  { name: 'Sat', tickets: 8, resolved: 9 },
-  { name: 'Sun', tickets: 5, resolved: 6 }
-]
 
 export default function DashboardPage() {
   const { isLoaded, isSignedIn, user } = useUser()
-  const [tickets, setTickets] = useState(mockTickets)
-  
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (!isSignedIn) return
+    ;(async () => {
+      setIsLoading(true)
+      // Fetch real tickets and analytics
+      const [ticketsResult, metricsResult] = await Promise.all([
+        api.getTickets({ limit: 10 }),
+        api.getAnalytics(),
+      ])
+
+      if (ticketsResult.success && ticketsResult.data) {
+        const data = Array.isArray(ticketsResult.data)
+          ? (ticketsResult.data as unknown as Ticket[])
+          : ((ticketsResult.data as TicketsResponse).tickets || [])
+        setTickets(data)
+      } else {
+        setTickets([])
+      }
+
+      setMetrics(metricsResult.success ? metricsResult.data : null)
+      setIsLoading(false)
+    })()
+  }, [isSignedIn])
+
   if (!isLoaded || !isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50 dark:from-slate-950 dark:via-purple-950/20 dark:to-slate-900">
@@ -70,9 +64,23 @@ export default function DashboardPage() {
       </div>
     )
   }
-  
+
+  const totalTickets = metrics?.total_tickets ?? 0
+  const openTickets = metrics?.open_tickets ?? 0
+  const ticketsToday = metrics?.tickets_today ?? 0
+  const avgResponseTimeStr = `${metrics?.avg_response_time_minutes ?? 0}m`
+  const satisfactionPct = Math.round(((metrics?.customer_satisfaction ?? 0) / 5) * 100)
+
+  // Simple real chart from metrics (no mocks)
+  const totalsChart = [
+    { name: 'Total', value: totalTickets },
+    { name: 'Open', value: openTickets },
+    { name: 'Today', value: ticketsToday },
+    { name: 'AI Resolved', value: metrics?.ai_resolved_tickets ?? 0 },
+  ]
+
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch ((status || '').toLowerCase()) {
       case 'open': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
       case 'in_progress': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
       case 'resolved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -81,8 +89,9 @@ export default function DashboardPage() {
   }
 
   const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+    switch ((priority || '').toLowerCase()) {
+      case 'urgent': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+      case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
       case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
       case 'low': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
@@ -136,7 +145,6 @@ export default function DashboardPage() {
       <div className="flex">
         {/* Left Sidebar - Quick Actions */}
         <aside className="w-80 min-h-screen p-6 space-y-6">
-          {/* Quick Actions */}
           <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
             <CardHeader>
               <CardTitle className="text-slate-900 dark:text-white">Quick Actions</CardTitle>
@@ -185,7 +193,9 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockStats.totalTickets}</div>
+                <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {isLoading ? '...' : totalTickets}
+                </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">All time</p>
               </CardContent>
             </Card>
@@ -198,7 +208,9 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockStats.openTickets}</div>
+                <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {isLoading ? '...' : openTickets}
+                </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">Needs attention</p>
               </CardContent>
             </Card>
@@ -211,7 +223,9 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockStats.resolvedToday}</div>
+                <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {isLoading ? '...' : ticketsToday}
+                </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">Great work!</p>
               </CardContent>
             </Card>
@@ -224,7 +238,9 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockStats.avgResponseTime}</div>
+                <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {isLoading ? '...' : avgResponseTimeStr}
+                </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">This week</p>
               </CardContent>
             </Card>
@@ -237,29 +253,30 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white">{mockStats.satisfactionScore}%</div>
-                <Progress value={mockStats.satisfactionScore} className="mt-2" />
+                <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {isLoading ? '...' : `${satisfactionPct}%`}
+                </div>
+                <Progress value={satisfactionPct} className="mt-2" />
               </CardContent>
             </Card>
           </div>
 
           {/* Charts and Recent Tickets */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Chart */}
+            {/* Real Metrics Chart */}
             <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-0 shadow-xl">
               <CardHeader>
-                <CardTitle className="text-slate-900 dark:text-white">Ticket Trends</CardTitle>
-                <CardDescription className="text-slate-600 dark:text-slate-300">Daily ticket volume and resolution rate</CardDescription>
+                <CardTitle className="text-slate-900 dark:text-white">Ticket Metrics</CardTitle>
+                <CardDescription className="text-slate-600 dark:text-slate-300">Live counts from your backend</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
+                  <BarChart data={totalsChart}>
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                     <XAxis dataKey="name" className="text-xs" />
                     <YAxis className="text-xs" />
                     <Tooltip />
-                    <Bar dataKey="tickets" fill="#8b5cf6" name="New Tickets" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="resolved" fill="#06b6d4" name="Resolved" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" fill="#8b5cf6" name="Count" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -273,30 +290,44 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {tickets.slice(0, 5).map((ticket) => (
-                    <div key={ticket.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors backdrop-blur-sm cursor-pointer">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="font-medium text-slate-900 dark:text-white">{ticket.id}</span>
-                          <Badge className={getStatusColor(ticket.status)}>
-                            {ticket.status.replace('_', ' ')}
-                          </Badge>
-                          <Badge className={getPriorityColor(ticket.priority)}>
-                            {ticket.priority}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-slate-600 dark:text-slate-300 truncate">
-                          {ticket.subject}
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {ticket.customer}
-                        </p>
-                      </div>
-                      <Link href={`/dashboard/tickets/${ticket.id}`} className="cursor-pointer">
-                        <Button variant="ghost" size="sm" className="hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl cursor-pointer">View</Button>
-                      </Link>
+                  {isLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-16 bg-slate-200 dark:bg-slate-700 rounded-xl animate-pulse" />
+                      ))}
                     </div>
-                  ))}
+                  ) : (
+                    tickets.slice(0, 5).map((ticket: Ticket | any) => {
+                      const customerEmail =
+                        ticket.customer_email ||
+                        ticket.customer?.email ||
+                        ''
+                      return (
+                        <div key={ticket.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors backdrop-blur-sm cursor-pointer">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="font-medium text-slate-900 dark:text-white">{ticket.id}</span>
+                              <Badge className={getStatusColor(ticket.status)}>
+                                {(ticket.status || '').replace('_', ' ')}
+                              </Badge>
+                              <Badge className={getPriorityColor(ticket.priority)}>
+                                {ticket.priority || '-'}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-300 truncate">
+                              {ticket.subject || '-'}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {customerEmail || '-'}
+                            </p>
+                          </div>
+                          <Link href={`/dashboard/tickets/${ticket.id}`} className="cursor-pointer">
+                            <Button variant="ghost" size="sm" className="hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-xl cursor-pointer">View</Button>
+                          </Link>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
                 <div className="mt-4 text-center">
                   <Link href="/dashboard/tickets" className="cursor-pointer">

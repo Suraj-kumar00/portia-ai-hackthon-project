@@ -1,36 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
-// Mock tickets data - in real app, this would come from database
-const mockTickets = [
-  {
-    id: 'TKT-001',
-    subject: 'Login issues after password reset',
-    description: 'User cannot login after resetting password',
-    customer_email: 'john@example.com',
-    status: 'open',
-    priority: 'high',
-    category: 'technical',
-    created_at: '2025-08-23T09:15:00Z',
-    updated_at: '2025-08-23T10:30:00Z'
-  },
-  {
-    id: 'TKT-002',
-    subject: 'Billing inquiry for premium plan',
-    description: 'Customer wants to upgrade to premium plan',
-    customer_email: 'sarah@example.com',
-    status: 'in_progress',
-    priority: 'medium',
-    category: 'billing',
-    created_at: '2025-08-23T08:30:00Z',
-    updated_at: '2025-08-23T09:45:00Z'
-  }
-]
+const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || 'http://localhost:8000'
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication - auth() is now async and must be awaited
-    const { userId } = await auth()
+    // Check authentication
+    const { userId, getToken } = await auth()
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -38,37 +14,46 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get query parameters
+    // Get Clerk token for backend authentication
+    const token = await getToken()
+
+    // Get query parameters from frontend
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const priority = searchParams.get('priority')
-    const limit = parseInt(searchParams.get('limit') || '10')
+    const limit = searchParams.get('limit')
 
-    // Filter tickets based on query params
-    let filteredTickets = mockTickets
+    // Build query string for FastAPI backend
+    const backendParams = new URLSearchParams()
+    if (status) backendParams.append('status', status)
+    if (priority) backendParams.append('priority', priority)
+    if (limit) backendParams.append('limit', limit)
 
-    if (status && status !== 'all') {
-      filteredTickets = filteredTickets.filter(ticket => ticket.status === status)
-    }
+    const queryString = backendParams.toString()
+    const backendUrl = `${FASTAPI_BASE_URL}/api/v1/tickets${queryString ? `?${queryString}` : ''}`
 
-    if (priority && priority !== 'all') {
-      filteredTickets = filteredTickets.filter(ticket => ticket.priority === priority)
-    }
-
-    // Limit results
-    const limitedTickets = filteredTickets.slice(0, limit)
-
-    return NextResponse.json({
-      success: true,
-      data: limitedTickets,
-      total: filteredTickets.length,
-      page: 1,
-      limit
+    // Call your FastAPI backend
+    const response = await fetch(backendUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
+      },
     })
+
+    if (!response.ok) {
+      throw new Error(`FastAPI backend error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    
+    // Return the data from your FastAPI backend
+    return NextResponse.json(data)
+
   } catch (error) {
-    console.error('Error fetching tickets:', error)
+    console.error('Error fetching tickets from backend:', error)
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: 'Failed to fetch tickets from backend' },
       { status: 500 }
     )
   }
@@ -76,8 +61,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication - auth() is now async and must be awaited
-    const { userId } = await auth()
+    // Check authentication
+    const { userId, getToken } = await auth()
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -85,60 +70,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get Clerk token for backend authentication
+    const token = await getToken()
+
+    // Get request body from frontend
     const body = await request.json()
-    const { customer_email, subject, query } = body
 
-    // Validate required fields
-    if (!customer_email || !subject || !query) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
-
-    // In real app, you would:
-    // 1. Save ticket to database
-    // 2. Call your backend API to process with Portia AI
-    // 3. Send notifications
-
-    // Mock ticket creation
-    const newTicket = {
-      id: `TKT-${Date.now()}`,
-      subject,
-      description: query,
-      customer_email,
-      status: 'open',
-      priority: 'medium',
-      category: 'general',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-
-    // Simulate AI processing
-    const aiResponse = {
-      ticket_id: newTicket.id,
-      response: "Thank you for contacting us. I've analyzed your request and will provide assistance shortly.",
-      classification: {
-        category: "general_inquiry",
-        urgency: "medium",
-        sentiment: "neutral"
+    // Forward the request to your FastAPI backend
+    const backendUrl = `${FASTAPI_BASE_URL}/api/v1/tickets/process-query`
+    
+    const response = await fetch(backendUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
       },
-      requires_human_approval: false,
-      ai_confidence: 0.85
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        ticket: newTicket,
-        ai_response: aiResponse
-      },
-      message: 'Ticket created successfully'
+      body: JSON.stringify(body)
     })
+
+    if (!response.ok) {
+      throw new Error(`FastAPI backend error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    
+    // Return the data from your FastAPI backend
+    return NextResponse.json(data)
+
   } catch (error) {
-    console.error('Error creating ticket:', error)
+    console.error('Error creating ticket in backend:', error)
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: 'Failed to create ticket in backend' },
       { status: 500 }
     )
   }
