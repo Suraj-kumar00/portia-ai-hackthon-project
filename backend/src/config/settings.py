@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = Field(default=60, env="JWT_EXPIRE_MINUTES")
     
     # CORS
-    frontend_url: str = Field(default="http://localhost:3000", env="FRONTEND_URL")
+    frontend_url: str = Field(default="https://portia-ai-hackthon-project-kk5i.vercel.app/", env="FRONTEND_URL")
     
     # Logging
     log_level: str = Field(default="INFO", env="LOG_LEVEL")

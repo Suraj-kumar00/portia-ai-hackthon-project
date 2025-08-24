@@ -80,6 +80,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         settings.frontend_url, 
+        "https://portia-ai-hackthon-project-kk5i.vercel.app",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:3001"  # Extra port for flexibility
