@@ -81,7 +81,7 @@ export default function NewTicketPage() {
       })
 
       // ✅ CRITICAL FIX: Corrected URL (removed double /api/v1)
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://portia-ai-hackthon-project-github-student-organization.appwrite.network'
       const response = await Promise.race([
         fetch(`${API_BASE_URL}/tickets/process-query`, {
           method: 'POST',

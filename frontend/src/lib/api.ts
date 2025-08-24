@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://portia-ai-hackthon-project-github-student-organization.appwrite.network/api/v1'
 
 interface ApiResponse<T = any> {
   success: boolean
