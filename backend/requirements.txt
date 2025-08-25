@@ -6,8 +6,10 @@ pydantic-settings>=2.6.0
 
 # Portia AI with Gemini support
 portia-sdk-python[google]>=0.7.2
+portia-sdk-python>=0.5.2
 
 typing-extensions>=4.8.0
+
 
 # Database & ORM
 prisma>=0.15.0
